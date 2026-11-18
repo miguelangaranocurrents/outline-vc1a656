@@ -1,6 +1,11 @@
 import type Model from "../base/Model";
 
-const fields = new Map<string, (string | number | symbol)[]>();
+// Keyed by class identity rather than class name: names are mangled by the
+// minifier, so two different models can share a name and would otherwise pick
+// up each other's fields.
+type ModelClass = abstract new (...args: never[]) => unknown;
+
+const fields = new Map<ModelClass, (string | number | symbol)[]>();
 
 /**
  * Returns the keys recorded as serializable fields on a model.
@@ -9,7 +14,7 @@ const fields = new Map<string, (string | number | symbol)[]>();
  * @returns the keys decorated with @Field.
  */
 export const getFieldsForModel = <T extends Model>(target: T) =>
-  getFieldsForModelClass(target.constructor);
+  getFieldsForModelClass(target.constructor as ModelClass);
 
 /**
  * Returns the keys recorded as serializable fields on a model class.
@@ -17,8 +22,8 @@ export const getFieldsForModel = <T extends Model>(target: T) =>
  * @param model the model class to inspect.
  * @returns the keys decorated with @Field.
  */
-export function getFieldsForModelClass(model: { name: string }) {
-  return fields.get(model.name) ?? [];
+export function getFieldsForModelClass(model: ModelClass) {
+  return fields.get(model) ?? [];
 }
 
 /**
@@ -29,8 +34,8 @@ export function getFieldsForModelClass(model: { name: string }) {
  * @param propertyKey the key to record as a field.
  */
 const Field = (target: Model, propertyKey: string | symbol) => {
-  const className = target.constructor.name;
-  fields.set(className, [...(fields.get(className) ?? []), propertyKey]);
+  const model = target.constructor as ModelClass;
+  fields.set(model, [...(fields.get(model) ?? []), propertyKey]);
 };
 
 export default Field;
